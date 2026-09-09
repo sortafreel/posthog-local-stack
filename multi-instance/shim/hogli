@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# bin/start runs `hogli doctor:ports`, which offers to tear down any "foreign" PostHog
+# compose stack holding a dev port. For an extra instance the main stack is foreign by
+# design, and upstream has no skip flag for that one check, so swallow it here and pass
+# everything else to the real hogli of the workspace.
+case "${1:-}" in
+    doctor:ports)
+        echo "[multi-instance] skipped hogli doctor:ports: other local PostHog stacks are expected"
+        exit 0
+        ;;
+esac
+exec "${POSTHOG_REAL_HOGLI:?POSTHOG_REAL_HOGLI must point at <workspace>/bin/hogli}" "$@"

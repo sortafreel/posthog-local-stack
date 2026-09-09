@@ -69,8 +69,10 @@ desktop-only units plus the hogli "always required" floor that neither product u
 
 ## When it stops working (notes for agents)
 
-The generated file is rewritten only by `hogli dev:*` commands, `hogli nuke`, or when
-upstream changes what the saved intents resolve to. Check in this order:
+`hogli start` regenerates the file on every start from the saved selection (intents,
+includes, excludes), so the slim config survives restarts and pulls. It changes only when
+a `hogli dev:*` command overwrites the selection, or when upstream changes what the saved
+intents resolve to. Check in this order:
 
 1. `hogli dev:explain` in the posthog repo. Compare with "What still runs" above.
 2. `devenv/intent-map.yaml`: does `desktop` still map to `temporal_workflows` without

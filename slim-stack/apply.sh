@@ -17,8 +17,6 @@ hogli dev:apply desktop mcp \
     --exclude capture \
     --exclude nodejs \
     --exclude property-defs-rs \
-    --exclude celery-worker \
-    --exclude celery-beat \
     --exclude personhog-replica \
     --exclude personhog-router \
     --skip-autostart mcp-ui-apps

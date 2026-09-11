@@ -19,13 +19,15 @@ Docker (15 containers): the 11 base ones (Postgres, ClickHouse, Kafka, ZooKeeper
 object storage, proxy, feature-flags, kafka-init) plus the `temporal` profile
 (Temporal, its UI, admin tools, and Elasticsearch).
 
-Host processes (10): backend, frontend, temporal-worker, embedding-worker, llm-gateway, mcp,
-feature-flags, hypercache-server, ngrok (exits at once unless `SITE_URL` is an ngrok URL),
+Host processes (12): backend, frontend, celery-worker, celery-beat, temporal-worker, embedding-worker,
+llm-gateway, mcp, feature-flags, hypercache-server, ngrok (exits at once unless `SITE_URL` is an ngrok URL),
 and the docker-compose log tail. Plus 5 one-shots: 4 migrations and ensure-local-setup.
 
 Why each one stays:
 
 - Temporal + worker: every signals and reviewhog workflow.
+- Celery worker + beat: closing a PR when a report is dismissed, scout Slack delivery,
+  refund sync, self-driving quota refresh, task emails and pushes.
 - ClickHouse + Kafka + embedding-worker: signals are stored as embeddings; writes go through Kafka.
   The worker also serves the embedding HTTP call used during grouping. Needs `OPENAI_API_KEY` in `.env`.
 - llm-gateway: `call_llm` and reviewhog's one-shot LLM calls default to `localhost:3308` in DEBUG.
@@ -40,14 +42,11 @@ Why each one stays:
   property-vals-rs, cymbal x3, livestream, webhook-s3-sink, capture-ai, dagster: only needed
   when events or errors are ingested for real. Signals are fed by hand instead (see below).
 - Docker profiles dynamodb, opensearch, browserless, duckgres, observability, replay, dev_tools.
-- Celery worker and beat (decision: drop both).
 - The MCP UI-apps watch build (kept as a manual unit; the server does not need it).
 - agent-proxy and the Electron desktop app (they come with the borrowed `desktop` intent).
 
 ## What you lose
 
-- Celery side jobs never run: closing a PR when a report is dismissed, scout Slack delivery,
-  refund sync, self-driving quota refresh, task emails and pushes. They queue in Redis silently.
 - No real signal sources. Feed the pipeline with `emit_signals_from_fixture`,
   `emit_signals_from_llm`, `ingest_signals_json`, `seed_inbox_data`. For scout data use
   `generate_demo_data` (writes straight to ClickHouse, no ingestion needed).

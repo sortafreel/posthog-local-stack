@@ -54,6 +54,10 @@ awk '/^# >>> posthog_configs multi-instance/{skip=1} !skip{print} /^# <<< postho
 { cat "$tmp"; [[ -s "$tmp" && "$(tail -c1 "$tmp")" != "" ]] && echo; printf '%s\n' "$block"; } > .env
 rm -f "$tmp"
 echo "   wrote instance block into .env"
+if [[ -n "${FLOX_ENV_PROJECT:-}" || -n "${DIRENV_DIR:-}" ]]; then
+    echo "   NOTE: this shell was activated before the block existed. Run 'direnv reload' (or leave and"
+    echo "         re-enter the directory) before running anything but run.sh here."
+fi
 
 # 3. MCP server env (gitignored, per worktree): same tokens as the main checkout, this instance's URLs.
 mcp_env=services/mcp/.env

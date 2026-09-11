@@ -7,18 +7,39 @@ Each extra instance is its own docker compose project (own Postgres, ClickHouse,
 Redis, object storage, Temporal, Elasticsearch) plus its own host processes. Nothing is
 shared with the main instance, so migrations, data, and tests never collide.
 
-## Use
+## Quick start (no Conductor needed)
 
 ```bash
-# once per workspace (Conductor "setup" script)
-multi-instance/build_env.sh <name> <port-base>     # Conductor sets both via env
-# start (Conductor "run" script), same flags as `hogli start`
-multi-instance/run.sh [-d]
-# remove containers + volumes (Conductor "archive" script)
-multi-instance/teardown.sh
+git worktree add ~/.worktrees/posthog/ws3 -b my-branch master
+cd ~/.worktrees/posthog/ws3
+~/Documents/Code/posthog_configs/multi-instance/build_env.sh ws3 8500   # once; picks a name and 10 free ports
+~/Documents/Code/posthog_configs/multi-instance/run.sh                  # TUI; add -d for detached
 ```
 
-Open `http://localhost:<port-base + 1>`. Temporal UI: `http://temporal-ui.posthog-<name>.orb.local:8080`.
+Open `http://localhost:8501` (port base + 1) and point your editor at the worktree.
+The main checkout keeps using `hogli start` as before.
+
+- Run the scripts from inside the worktree. Name and ports are remembered in its `.env`,
+  so `run.sh` and `teardown.sh` take no arguments afterwards.
+- If your shell uses direnv (the repo's `.envrc` activates flox), run `direnv reload` after
+  `build_env.sh`, or leave and re-enter the directory. A shell activated before the block
+  existed keeps its old environment, and the repo's `.envrc` also exports
+  `COMPOSE_PROJECT_NAME=posthog`. `run.sh` protects itself: it exports the workspace `.env`
+  and refuses to start unless the database hosts point at the instance. Other commands you
+  run by hand in that shell (`hogli test`, `manage.py`) do not.
+- Quitting the TUI leaves the containers up. `teardown.sh` removes them with their volumes.
+- Removing the worktree afterwards: `chmod -R u+w <worktree> && git worktree remove --force <worktree>`.
+  The phrocs build leaves a read-only Go module cache under `.flox/cache`, which makes a plain
+  `git worktree remove` fail half-way.
+- Another instance: a new worktree, a new name, another free block of ten ports (8600...).
+- Each instance costs about 5 GB of container memory. Raise OrbStack's memory limit
+  (15.7 GB today) to about 24 GB before running three.
+- Temporal UI: `http://temporal-ui.posthog-<name>.orb.local:8080`.
+
+## With Conductor
+
+The same three scripts are the workspace's setup, run, and archive hooks. Conductor passes
+the name and ports through env, so no arguments are needed.
 
 The stack is the slim one from `../slim-stack` (Temporal, LLM gateway, MCP, embeddings,
 flags; no ingestion, no Celery). Same limits apply, plus: ngrok and Modal sandboxes only
@@ -126,8 +147,10 @@ instance right after the extra instance migrated, must stay at 0.
 1. `run.sh` refuses to start: run `build_env.sh` again (it is idempotent).
 2. Containers up but the app cannot reach them: `nc -z db.posthog-<name>.orb.local 5432`.
    OrbStack DNS must resolve; Docker Desktop does not provide it.
-3. Kafka producers hang or write to the wrong stack: check the override's kafka
+3. `run.sh` says the hosts do not point at the instance: the `.env` block is missing or
+   overridden. Re-run `build_env.sh`, then `direnv reload`.
+4. Kafka producers hang or write to the wrong stack: check the override's kafka
    `command` still carries `external://kafka.posthog-<name>.orb.local:19092`.
-4. A host process dies on a port clash: `lsof -nP -iTCP:<port> -sTCP:LISTEN`; the ten
+5. A host process dies on a port clash: `lsof -nP -iTCP:<port> -sTCP:LISTEN`; the ten
    ports must be free before `run.sh`.
-5. Slim base config missing units: see `../slim-stack/README.md`.
+6. Slim base config missing units: see `../slim-stack/README.md`.

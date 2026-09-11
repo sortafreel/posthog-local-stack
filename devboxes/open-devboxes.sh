@@ -24,8 +24,11 @@ trap 'rm -rf "$log_dir"' EXIT
 pids=()
 for box in "${devboxes[@]}"; do
   echo "waiting for $box..."
+  # flox only sources its [profile] venv activation for interactive shells,
+  # so a fresh terminal needs the venv sourced by hand before hogli exists.
   (
-    cd "$POSTHOG_DIR" && flox activate -- hogli devbox:exec -n "$box" -- printenv CODER_WORKSPACE_NAME
+    cd "$POSTHOG_DIR" && flox activate -- bash -c \
+      'source "$FLOX_ENV_CACHE/venv/bin/activate" && hogli devbox:exec -n "$1" -- printenv CODER_WORKSPACE_NAME' _ "$box"
   ) >"$log_dir/$box.name" 2>"$log_dir/$box.log" &
   pids+=($!)
 done
